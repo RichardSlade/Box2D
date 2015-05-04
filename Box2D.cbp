@@ -30,7 +30,20 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
+			<Add directory="../../libraries/SFML-2.2/include" />
+			<Add directory="../../libraries/Box2D_v2.3.0/Box2D" />
+			<Add directory="include" />
 		</Compiler>
+		<Linker>
+			<Add library="sfml-graphics" />
+			<Add library="sfml-window" />
+			<Add library="sfml-system" />
+			<Add library="Box2D" />
+			<Add directory="../../libraries/SFML-2.2/lib" />
+			<Add directory="../../libraries/Box2D_v2.3.0/Box2D/Box2D" />
+		</Linker>
+		<Unit filename="include/Object.hpp" />
+		<Unit filename="src/main.cpp" />
 		<Extensions>
 			<code_completion />
 			<envvars />
