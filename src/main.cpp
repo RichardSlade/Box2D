@@ -1,50 +1,53 @@
 #include <iostream>
 
-#include <SFML/Graphics.hpp>
-#include <SFML/Window.hpp>
-#include <SFML/System.hpp>
-#include <Box2D/Box2D.h>
+#include "Body.hpp"
 
-#include "Object.hpp"
+sf::RenderWindow window(sf::VideoMode(ViewX, ViewY), "Box2D");
+bool closeWindow = false;
 
-sf::Vector2f metersToPixel(b2Vec2 meters)
-{
-
-}
+void handleInput();
 
 int main()
 {
-   sf::RenderWindow window(sf::VideoMode(800, 600), "Box2D");
-
-   b2Vec2 gravity(0.f, -10.f);
+   // Setup Box2D with gravity
+   b2Vec2 gravity(0.f, 20.f);
    b2World world(gravity);
 
+   // Container for Bodies
+   std::vector<Body> bodies;
+
+
+   // Define ground body
    b2BodyDef groundBodyDef;
-   sf::Vector2f pos(0.f, 10.f);
+   b2Vec2 pos(WorldX / 4.f, WorldY);
    groundBodyDef.position.Set(pos.x, pos.y);
 
    b2Body* groundBody = world.CreateBody(&groundBodyDef);
 
    b2PolygonShape groundBox;
-   sf::Vector2f size(50.f, 10.f);
+   b2Vec2 size(WorldX / 8.f, WorldY / 16.f);
    groundBox.SetAsBox(size.x, size.y);
 
    groundBody->CreateFixture(&groundBox, 0.f);
 
-   Object ground(groundBody
+   size *= 2.f;
+
+   Body ground(groundBody
                , size
                , pos
                , sf::Color::Green);
 
+
+   // Define Dynamic body
    b2BodyDef bodyDef;
    bodyDef.type = b2_dynamicBody;
-   pos = sf::Vector2f(0.f, 4.f);
+   pos = b2Vec2(WorldX / 2.f, WorldY / 4.f);
    bodyDef.position.Set(pos.x, pos.y);
 
    b2Body* body = world.CreateBody(&bodyDef);
 
    b2PolygonShape dynamicBox;
-   size = sf::Vector2f(1.f, 1.f);
+   size = b2Vec2(15.f, 15.f);
    dynamicBox.SetAsBox(size.x, size.y);
 
    b2FixtureDef fixtureDef;
@@ -54,7 +57,9 @@ int main()
 
    body->CreateFixture(&fixtureDef);
 
-   Object dynamic(body
+   size *= 2.f;
+
+   Body dynamic(body
                   , size
                   , pos
                   , sf::Color::Red);
@@ -67,35 +72,19 @@ int main()
    sf::Time countDown = FPS;
    sf::Clock clock;
 
-   bool closeWindow = false;
-
-   int count = 100;
-
    while(!closeWindow)
-//   while(--count > 0)
    {
-      sf::Event e;
-
-      while(window.pollEvent(e))
-      {
-         if(e.key.code == sf::Keyboard::Escape)
-            closeWindow = true;
-      }
+      handleInput();
 
       countDown -= clock.restart();
 
       if(countDown < sf::Time::Zero)
       {
          countDown = FPS;
-
-         ground.update();
          dynamic.update();
       }
 
       world.Step(timeStep, velocityIters, positionIters);
-
-      std::cout << "Ground Pos: " << groundBody->GetPosition().x <<  groundBody->GetPosition().y << "\tAngle: " << groundBody->GetAngle() << std::endl;
-//      std::cout << "Body Pos: " << body->GetPosition().x <<  body->GetPosition().y << "\tAngle: " << body->GetAngle() << std::endl;
 
       window.clear();
 
@@ -108,4 +97,29 @@ int main()
    window.close();
 
    return 0;
+}
+
+void handleInput()
+{
+   sf::Event e;
+
+   while(window.pollEvent(e))
+   {
+      switch(e.type)
+      {
+         case sf::Event::KeyReleased:
+         {
+            if(e.key.code == sf::Keyboard::Escape)
+               closeWindow = true;
+
+            break;
+         }
+         case sf::Event::Closed:
+         {
+            closeWindow = true;
+            break;
+         }
+         default: break;
+      }
+   }
 }

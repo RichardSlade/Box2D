@@ -43,6 +43,7 @@
 			<Add directory="../../libraries/Box2D_v2.3.0/Box2D/Box2D" />
 		</Linker>
 		<Unit filename="include/Object.hpp" />
+		<Unit filename="include/Utility.hpp" />
 		<Unit filename="src/main.cpp" />
 		<Extensions>
 			<code_completion />
