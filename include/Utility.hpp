@@ -11,8 +11,7 @@ static const std::vector<sf::Color> Colours = {sf::Color::Red,
                                                sf::Color::Magenta,
                                                sf::Color::Blue,
                                                sf::Color::Cyan,
-                                               sf::Color::Yellow,
-                                               sf::Color::White};
+                                               sf::Color::Yellow};
 
 const float WorldX = 100;
 const float WorldY = 75;

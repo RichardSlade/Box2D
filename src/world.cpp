@@ -6,12 +6,20 @@ const static float32 TimeStep = 1.f / 60.f;
 const static int32 VelocityIters = 6;
 const static int32 PositionIters = 2;
 const static unsigned int NumStaticBodies = 8;
+const static float PlayerRadius = 2.f;
 
 World::World(sf::RenderWindow& window)
 : mWindow(window),
-mPhysicsEngine(b2Vec2(0.f, 20.f))
+mPhysicsEngine(b2Vec2(0.f, 0.f)),
+mPlayer(nullptr)
 {
-   // Create ground
+//   createStaticBodies();
+   createPlayer();
+}
+
+void World::createStaticBodies()
+{
+      // Create ground
    sf::Vector2f pos(WorldX / 2.f, WorldY);
 
    generateBody(pos,
@@ -43,12 +51,159 @@ mPhysicsEngine(b2Vec2(0.f, 20.f))
    }
 }
 
+void World::createPlayer()
+{
+   b2BodyType type = b2_dynamicBody;
+   sf::Vector2f pos(WorldX / 2.f, WorldY / 2.f);
+
+   b2BodyDef bodyDef;
+   bodyDef.type = type;
+   bodyDef.position.Set(pos.x, pos.y);
+
+   b2Body* body = mPhysicsEngine.CreateBody(&bodyDef);
+
+   b2CircleShape circle;
+   circle.m_p.Set(0.f, 0.f);
+   circle.m_radius = PlayerRadius;
+
+   PhysicsBody::PhyBody phyBody = nullptr;
+
+   b2FixtureDef fixtureDef;
+   fixtureDef.shape = &circle;
+   fixtureDef.density = 1.f;
+   fixtureDef.friction = 0.3f;
+
+   body->CreateFixture(&fixtureDef);
+
+   mPlayer = Player::ptrPlayer(new Player(body,
+                                          pos,
+                                          PlayerRadius,
+                                          sf::Color::Green));
+}
+
+void World::generateBody(sf::Vector2f pos,
+                         sf::Vector2f size,
+                         b2BodyType type = b2_staticBody)
+{
+   b2BodyDef bodyDef;
+   bodyDef.type = type;
+   bodyDef.position.Set(pos.x, pos.y);
+
+   b2Body* body = mPhysicsEngine.CreateBody(&bodyDef);
+
+   b2PolygonShape box;
+   box.SetAsBox(size.x / 2.f, size.y / 2.f);
+
+   PhysicsBody::PhyBody phyBody = nullptr;
+
+   if(type == b2_staticBody)
+   {
+      body->CreateFixture(&box, 0.f);
+
+      phyBody = PhysicsBody::PhyBody(new PhysicsBody(body,
+                                                      pos,
+                                                      size,
+                                                      randomColour()));
+   }
+   else
+   {
+      b2FixtureDef fixtureDef;
+      fixtureDef.shape = &box;
+      fixtureDef.density = 1.f;
+      fixtureDef.friction = 0.3f;
+
+      body->CreateFixture(&fixtureDef);
+
+      phyBody = PhysicsBody::PhyBody(new DynamicPhysicsBody(body,
+                                                            pos,
+                                                            size,
+                                                            randomColour()));
+   }
+
+   if(phyBody)
+      mPhysicsBodies.push_back(std::move(phyBody));
+}
+
+void World::generateBody(sf::Vector2f pos,
+                      float radius,
+                      b2BodyType type = b2_staticBody)
+{
+   b2BodyDef bodyDef;
+   bodyDef.type = type;
+   bodyDef.position.Set(pos.x, pos.y);
+
+   b2Body* body = mPhysicsEngine.CreateBody(&bodyDef);
+
+   b2CircleShape circle;
+   circle.m_p.Set(0.f, 0.f);
+   circle.m_radius = radius;
+
+   PhysicsBody::PhyBody phyBody = nullptr;
+
+   if(type == b2_staticBody)
+   {
+      body->CreateFixture(&circle, 0.f);
+
+      phyBody = PhysicsBody::PhyBody(new PhysicsBody(body,
+                                                      pos,
+                                                      radius,
+                                                      randomColour()));
+   }
+   else
+   {
+      b2FixtureDef fixtureDef;
+      fixtureDef.shape = &circle;
+      fixtureDef.density = 1.f;
+      fixtureDef.friction = 0.3f;
+
+      body->CreateFixture(&fixtureDef);
+
+      phyBody = PhysicsBody::PhyBody(new DynamicPhysicsBody(body,
+                                                            pos,
+                                                            radius,
+                                                            randomColour()));
+   }
+
+   if(phyBody)
+      mPhysicsBodies.push_back(std::move(phyBody));
+}
+
+void World::handleRealTimeInput()
+{
+   sf::Vector2f vel;
+
+   if(sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+   {
+      vel.y = -10.f;
+   }
+   else if(sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+   {
+      vel.y = 10.f;
+   }
+   else vel.y = 0.f;
+
+   if(sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+   {
+      vel.x = -10.f;
+   }
+   else if(sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+   {
+      vel.x = 10.f;
+   }
+   else vel.x = 0.f;
+
+   mPlayer->setVelocity(vel);
+}
+
 void World::updateWorld()
 {
    for(std::list<PhysicsBody::PhyBody>::iterator it = mPhysicsBodies.begin();
        it != mPhysicsBodies.end();
        it++)
       (*it)->update();
+
+   if(mPlayer)
+      mPlayer->update();
 
    cleanUpPhysicsBodies();
 }
@@ -101,10 +256,9 @@ bool World::handleInput()
       }
    }
 
-   mOldMousePos = sf::Mouse::getPosition(mWindow);
+   handleRealTimeInput();
 
    return true;
-
 }
 
 void World::render()
@@ -113,104 +267,11 @@ void World::render()
        it != mPhysicsBodies.end();
        it++)
       mWindow.draw((*it)->getShape());
+
+   if(mPlayer)
+      mWindow.draw(mPlayer->getShape());
 }
 
-void World::generateBody(sf::Vector2f pos,
-                         sf::Vector2f size,
-                         b2BodyType type)
-{
-   b2BodyDef bodyDef;
-   bodyDef.type = type;
-   bodyDef.position.Set(pos.x, pos.y);
-
-   b2Body* body = mPhysicsEngine.CreateBody(&bodyDef);
-
-   b2PolygonShape box;
-   box.SetAsBox(size.x / 2.f, size.y / 2.f);
-
-   PhysicsBody::PhyBody phyBody = nullptr;
-
-   if(type == b2_staticBody)
-   {
-      body->CreateFixture(&box, 0.f);
-
-      phyBody = PhysicsBody::PhyBody(new PhysicsBody(body,
-                                                      pos,
-                                                      size,
-                                                      randomColour()));
-   }
-   else
-   {
-      b2FixtureDef fixtureDef;
-      fixtureDef.shape = &box;
-      fixtureDef.density = 1.f;
-      fixtureDef.friction = 0.3f;
-
-      body->CreateFixture(&fixtureDef);
-
-      sf::Vector2i mouseVel = sf::Mouse::getPosition(mWindow) - mOldMousePos;
-
-      body->ApplyForceToCenter(b2Vec2(mouseVel.x, mouseVel.y),
-                              false);
-
-      phyBody = PhysicsBody::PhyBody(new DynamicPhysicsBody(body,
-                                                            pos,
-                                                            size,
-                                                            randomColour()));
-   }
-
-   if(phyBody)
-      mPhysicsBodies.push_back(std::move(phyBody));
-}
-
-void World::generateBody(sf::Vector2f pos,
-                      float radius,
-                      b2BodyType type = b2_staticBody)
-{
-   b2BodyDef bodyDef;
-   bodyDef.type = type;
-   bodyDef.position.Set(pos.x, pos.y);
-
-   b2Body* body = mPhysicsEngine.CreateBody(&bodyDef);
-
-   b2CircleShape circle;
-   circle.m_p.Set(0.f, 0.f);
-   circle.m_radius = radius;
-
-   PhysicsBody::PhyBody phyBody = nullptr;
-
-   if(type == b2_staticBody)
-   {
-      body->CreateFixture(&circle, 0.f);
-
-      phyBody = PhysicsBody::PhyBody(new PhysicsBody(body,
-                                                      pos,
-                                                      radius,
-                                                      randomColour()));
-   }
-   else
-   {
-      b2FixtureDef fixtureDef;
-      fixtureDef.shape = &circle;
-      fixtureDef.density = 1.f;
-      fixtureDef.friction = 0.3f;
-
-      body->CreateFixture(&fixtureDef);
-
-      sf::Vector2i mouseVel = sf::Mouse::getPosition(mWindow) - mOldMousePos;
-
-      body->ApplyForceToCenter(b2Vec2(mouseVel.x, mouseVel.y),
-                              false);
-
-      phyBody = PhysicsBody::PhyBody(new DynamicPhysicsBody(body,
-                                                            pos,
-                                                            radius,
-                                                            randomColour()));
-   }
-
-   if(phyBody)
-      mPhysicsBodies.push_back(std::move(phyBody));
-}
 
 void World::cleanUpPhysicsBodies()
 {
